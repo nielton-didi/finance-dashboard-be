@@ -14,6 +14,8 @@ import { UpdateAccountDto } from './dto/update-account.dto';
 import { UpdatePasswordDto } from './dto/update-password.dto';
 import { APP_DB_CONNECTION } from '../../config/database.tokens';
 import { OrganizationAccessService } from '../organizations/organization-access.service';
+import { OrganizationsService } from '../organizations/organizations.service';
+import type { Organization } from '../organizations/entities/organization.entity';
 
 const BCRYPT_ROUNDS = 10;
 
@@ -23,6 +25,7 @@ export class UsersService {
     @InjectRepository(User, APP_DB_CONNECTION)
     private readonly usersRepository: Repository<User>,
     private readonly organizationAccessService: OrganizationAccessService,
+    private readonly organizationsService: OrganizationsService,
   ) {}
 
   findAll(): Promise<User[]> {
@@ -90,5 +93,20 @@ export class UsersService {
   ): Promise<void> {
     await this.findOne(userId);
     await this.organizationAccessService.revoke(userId, organizationId);
+  }
+
+  async findOrganizations(userId: number): Promise<Organization[]> {
+    await this.findOne(userId);
+    const orgIds =
+      await this.organizationAccessService.listOrganizationIds(userId);
+    return this.organizationsService.findByIds(orgIds);
+  }
+
+  async remove(id: number, currentUserId: number): Promise<void> {
+    if (id === currentUserId) {
+      throw new BadRequestException('You cannot delete your own account');
+    }
+    await this.findOne(id);
+    await this.usersRepository.delete(id);
   }
 }
