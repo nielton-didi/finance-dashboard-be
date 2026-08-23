@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseIntPipe,
@@ -45,5 +46,11 @@ export class OrganizationsController {
     @Body() dto: UpdateOrganizationDto,
   ) {
     return this.organizationsService.update(orgId, dto);
+  }
+
+  @Delete(':orgId')
+  @RequirePermissions(Permission.OrganizationManage)
+  remove(@Param('orgId', ParseIntPipe) orgId: number) {
+    return this.organizationsService.remove(orgId);
   }
 }

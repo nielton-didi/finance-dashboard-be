@@ -62,4 +62,9 @@ export class OrganizationsService {
     await this.organizationsRepository.update(id, dto);
     return this.findOne(id);
   }
+
+  async remove(id: number): Promise<void> {
+    await this.findOne(id);
+    await this.organizationsRepository.delete(id);
+  }
 }
