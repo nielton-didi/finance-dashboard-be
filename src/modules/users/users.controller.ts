@@ -14,6 +14,8 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { GrantOrganizationAccessDto } from './dto/grant-organization-access.dto';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { Permission } from '../../common/auth/role';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import type { JwtPayload } from '../auth/strategies/jwt.strategy';
 
 @Controller('users')
 @RequirePermissions(Permission.UserManage)
@@ -38,6 +40,19 @@ export class UsersController {
   @Patch(':id')
   update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateUserDto) {
     return this.usersService.update(id, dto);
+  }
+
+  @Delete(':id')
+  remove(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.usersService.remove(id, user.sub);
+  }
+
+  @Get(':id/organizations')
+  findOrganizations(@Param('id', ParseIntPipe) id: number) {
+    return this.usersService.findOrganizations(id);
   }
 
   @Post(':id/organizations')

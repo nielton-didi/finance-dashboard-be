@@ -31,6 +31,14 @@ export class OrganizationsService {
     });
   }
 
+  async findByIds(ids: number[]): Promise<Organization[]> {
+    if (ids.length === 0) return [];
+    return this.organizationsRepository.find({
+      where: ids.map((id) => ({ id })),
+      order: { name: 'ASC' },
+    });
+  }
+
   async findOne(id: number): Promise<Organization> {
     const organization = await this.organizationsRepository.findOne({
       where: { id },
