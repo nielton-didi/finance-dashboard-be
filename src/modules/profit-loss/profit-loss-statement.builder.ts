@@ -5,7 +5,8 @@ import {
   ProfitLossSummaryRowDto,
 } from './dto/profit-loss-statement.dto';
 
-export type PnlAccType = 'SL' | 'SA' | 'CO' | 'OI' | 'EP';
+export const PNL_ACC_TYPES = ['SL', 'SA', 'CO', 'OI', 'EP', 'TX'] as const;
+export type PnlAccType = (typeof PNL_ACC_TYPES)[number];
 
 export interface GlAccountRow {
   accountCode: string;
@@ -13,6 +14,8 @@ export interface GlAccountRow {
   accType: PnlAccType;
   /** Signed so a positive amount always means "more of this account's natural balance". */
   amount: number;
+  /** Set when `amount` includes a stock valuation — see profit-loss-stock.ts. */
+  hasStockValue?: boolean;
 }
 
 /**
@@ -74,6 +77,13 @@ export function buildProfitLossStatement(
     grossSalesTotal,
   );
 
+  const taxation = buildSection('TAXATION', 'TX', rows, grossSalesTotal);
+  const netProfitAfterTax = buildSummaryRow(
+    'NET PROFIT/(LOSS) AFTER TAX',
+    round(netProfitAmount - taxation.total),
+    grossSalesTotal,
+  );
+
   return {
     companyName,
     fromDate,
@@ -86,6 +96,8 @@ export function buildProfitLossStatement(
     otherIncomes,
     expenses,
     netProfit,
+    taxation,
+    netProfitAfterTax,
   };
 }
 
@@ -102,11 +114,18 @@ function buildSection(
       accountName: r.accountName,
       amount: r.amount,
       percent: percentOf(r.amount, percentBase),
+      hasStockValue: r.hasStockValue ?? false,
     }));
 
   const total = round(items.reduce((s, i) => s + i.amount, 0));
 
-  return { title, items, total, percent: percentOf(total, percentBase) };
+  return {
+    title,
+    accType,
+    items,
+    total,
+    percent: percentOf(total, percentBase),
+  };
 }
 
 function buildSummaryRow(

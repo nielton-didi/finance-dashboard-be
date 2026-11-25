@@ -34,6 +34,12 @@ const ROWS: GlAccountRow[] = [
     accType: 'EP',
     amount: 30_000,
   },
+  {
+    accountCode: '950-0000',
+    accountName: 'Taxation',
+    accType: 'TX',
+    amount: 15_000,
+  },
 ];
 
 describe('buildProfitLossStatement', () => {
@@ -69,6 +75,11 @@ describe('buildProfitLossStatement', () => {
 
   it('computes NET PROFIT as gross profit plus other incomes minus expenses', () => {
     expect(statement.netProfit.amount).toBe(75_000);
+  });
+
+  it('deducts taxation after NET PROFIT, leaving NET PROFIT itself pre-tax', () => {
+    expect(statement.taxation.total).toBe(15_000);
+    expect(statement.netProfitAfterTax.amount).toBe(60_000);
   });
 
   it('computes percentages relative to gross sales', () => {
