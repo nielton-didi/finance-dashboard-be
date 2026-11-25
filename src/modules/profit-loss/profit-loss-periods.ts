@@ -64,6 +64,12 @@ export function shiftDateToPriorYear(isoDate: string): string {
   return shiftYear(isoDate, true);
 }
 
+export function nextDay(isoDate: string): string {
+  const date = new Date(`${isoDate}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + 1);
+  return date.toISOString().slice(0, 10);
+}
+
 export interface PeriodBucket {
   key: string;
   label: string;

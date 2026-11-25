@@ -8,5 +8,6 @@ import { BalanceSheetService } from './balance-sheet.service';
   imports: [AutocountConnectionsModule, OrganizationsModule],
   controllers: [BalanceSheetController],
   providers: [BalanceSheetService],
+  exports: [BalanceSheetService],
 })
 export class BalanceSheetModule {}

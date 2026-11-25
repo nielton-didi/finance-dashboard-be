@@ -144,11 +144,13 @@ export class ProfitLossService {
   async getTrend(
     organizationId: number,
     query: ProfitLossTrendQueryDto,
+    /** Leaves out anything posted after this date. */
+    upTo = `${query.year}-12-31`,
   ): Promise<ProfitLossTrendDto> {
     const rows = await this.fetchAccountPeriods(organizationId, {
       ...query,
       fromDate: `${query.year - 1}-01-01`,
-      toDate: `${query.year}-12-31`,
+      toDate: upTo,
     });
 
     const netSalesByPeriod = new Map<number, number>();

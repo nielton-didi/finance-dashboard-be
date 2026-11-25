@@ -8,5 +8,6 @@ import { OrganizationsModule } from '../organizations/organizations.module';
   imports: [AutocountConnectionsModule, OrganizationsModule],
   controllers: [ProfitLossController],
   providers: [ProfitLossService],
+  exports: [ProfitLossService],
 })
 export class ProfitLossModule {}

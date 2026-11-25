@@ -8,5 +8,6 @@ import { CashFlowService } from './cash-flow.service';
   imports: [AutocountConnectionsModule, OrganizationsModule],
   controllers: [CashFlowController],
   providers: [CashFlowService],
+  exports: [CashFlowService],
 })
 export class CashFlowModule {}

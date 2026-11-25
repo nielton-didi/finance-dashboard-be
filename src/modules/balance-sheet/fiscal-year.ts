@@ -1,3 +1,5 @@
+import { nextDay } from '../profit-loss/profit-loss-periods';
+
 export interface FiscalYearRow {
   fromDate: string;
   toDate: string;
@@ -21,16 +23,10 @@ export function fiscalYearStart(
     null,
   );
   // The day after a year ends is when the next one starts, whatever its length.
-  const monthDay = latest ? dayAfter(latest.toDate).slice(5) : '01-01';
+  const monthDay = latest ? nextDay(latest.toDate).slice(5) : '01-01';
   const year = Number(asOfDate.slice(0, 4));
   const candidate = `${String(year).padStart(4, '0')}-${monthDay}`;
   return candidate <= asOfDate
     ? candidate
     : `${String(year - 1).padStart(4, '0')}-${monthDay}`;
-}
-
-function dayAfter(isoDate: string): string {
-  const date = new Date(`${isoDate}T00:00:00Z`);
-  date.setUTCDate(date.getUTCDate() + 1);
-  return date.toISOString().slice(0, 10);
 }
