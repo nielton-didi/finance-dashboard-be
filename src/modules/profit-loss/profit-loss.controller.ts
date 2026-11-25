@@ -7,7 +7,12 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ProfitLossService } from './profit-loss.service';
-import { ProfitLossQueryDto } from './dto/profit-loss-query.dto';
+import {
+  ProfitLossBreakdownQueryDto,
+  ProfitLossQueryDto,
+  ProfitLossTransactionsQueryDto,
+  ProfitLossTrendQueryDto,
+} from './dto/profit-loss-query.dto';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { Permission } from '../../common/auth/role';
 import { OrgAccessGuard } from '../organizations/guards/org-access.guard';
@@ -24,5 +29,34 @@ export class ProfitLossController {
     @Query() query: ProfitLossQueryDto,
   ) {
     return this.profitLossService.getStatement(orgId, query);
+  }
+
+  @Get('breakdown')
+  getBreakdown(
+    @Param('orgId', ParseIntPipe) orgId: number,
+    @Query() query: ProfitLossBreakdownQueryDto,
+  ) {
+    return this.profitLossService.getBreakdown(orgId, query);
+  }
+
+  @Get('trend')
+  getTrend(
+    @Param('orgId', ParseIntPipe) orgId: number,
+    @Query() query: ProfitLossTrendQueryDto,
+  ) {
+    return this.profitLossService.getTrend(orgId, query);
+  }
+
+  @Get('transactions')
+  getTransactions(
+    @Param('orgId', ParseIntPipe) orgId: number,
+    @Query() query: ProfitLossTransactionsQueryDto,
+  ) {
+    return this.profitLossService.getTransactions(orgId, query);
+  }
+
+  @Get('filters')
+  getFilters(@Param('orgId', ParseIntPipe) orgId: number) {
+    return this.profitLossService.getFilters(orgId);
   }
 }
