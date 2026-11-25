@@ -12,6 +12,7 @@ import { UsersModule } from './modules/users/users.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
 import { AutocountConnectionsModule } from './modules/autocount-connections/autocount-connections.module';
 import { BalanceSheetModule } from './modules/balance-sheet/balance-sheet.module';
+import { CashFlowModule } from './modules/cash-flow/cash-flow.module';
 import { ProfitLossModule } from './modules/profit-loss/profit-loss.module';
 import { AuditLogModule } from './modules/audit-log/audit-log.module';
 import { HealthModule } from './modules/health/health.module';
@@ -52,6 +53,7 @@ import { HealthModule } from './modules/health/health.module';
     AutocountConnectionsModule,
     ProfitLossModule,
     BalanceSheetModule,
+    CashFlowModule,
     AuditLogModule,
     HealthModule,
   ],

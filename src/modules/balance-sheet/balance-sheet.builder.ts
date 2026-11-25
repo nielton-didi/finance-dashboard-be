@@ -6,6 +6,13 @@ import {
   PnlAccType,
   round,
 } from '../profit-loss/profit-loss-statement.builder';
+import {
+  AccountInfo,
+  GroupKey,
+  groupOf,
+  isDebitGroup,
+  rollUpControlAccounts,
+} from './accounts';
 import { toPeriodNo } from '../profit-loss/profit-loss-periods';
 import {
   applyStockValues,
@@ -21,16 +28,8 @@ import {
 } from './dto/balance-sheet.dto';
 
 /** One GLMast account. Amounts are debit-positive, in home currency. */
-export interface AccountBalanceRow {
-  accountCode: string;
-  accountName: string;
-  accType: string;
+export interface AccountBalanceRow extends AccountInfo {
   accTypeName: string;
-  specialAccType: string | null;
-  parentAccNo: string | null;
-  /** AccGroup.Group: AS / FN are balance sheet groups, everything else is P&L. */
-  groupCode: string | null;
-  normalBalance: string | null;
   seq: number | null;
   /** From OBalance — balances brought in when the books were set up. */
   opening: number;
@@ -50,24 +49,6 @@ export interface BalanceSheetInput {
   openingPeriod: number | null;
 }
 
-type GroupKey =
-  | 'nonCurrentAssets'
-  | 'currentAssets'
-  | 'equity'
-  | 'nonCurrentLiabilities'
-  | 'currentLiabilities';
-
-const GROUP_BY_ACC_TYPE: Record<string, GroupKey> = {
-  FA: 'nonCurrentAssets',
-  OA: 'nonCurrentAssets',
-  CA: 'currentAssets',
-  CL: 'currentLiabilities',
-  CP: 'equity',
-  RE: 'equity',
-  LL: 'nonCurrentLiabilities',
-  OL: 'nonCurrentLiabilities',
-};
-
 const GROUP_LABELS: Record<GroupKey, string> = {
   nonCurrentAssets: 'TOTAL NON-CURRENT ASSETS',
   currentAssets: 'TOTAL CURRENT ASSETS',
@@ -75,19 +56,6 @@ const GROUP_LABELS: Record<GroupKey, string> = {
   nonCurrentLiabilities: 'TOTAL NON-CURRENT LIABILITIES',
   currentLiabilities: 'TOTAL CURRENT LIABILITIES',
 };
-
-const isDebitGroup = (group: GroupKey) =>
-  group === 'nonCurrentAssets' || group === 'currentAssets';
-
-/** Null for P&L accounts. Custom account types fall back to their AutoCount group. */
-function groupOf(row: AccountBalanceRow): GroupKey | null {
-  const known = GROUP_BY_ACC_TYPE[row.accType];
-  if (known) return known;
-  if (row.groupCode === 'AS') {
-    return row.normalBalance === 'C' ? 'currentLiabilities' : 'currentAssets';
-  }
-  return row.groupCode === 'FN' ? 'nonCurrentLiabilities' : null;
-}
 
 const net = (row: AccountBalanceRow) =>
   row.opening + row.priorNet + row.currentNet;
@@ -101,7 +69,11 @@ export function buildBalanceSheet(
   const { assetAdjustments, profitAdjustment } = valueStock(input);
   const profit = splitProfit(input, profitAdjustment);
 
-  const balances = rollUpControlAccounts(input.accounts).map((row) => ({
+  const balances = rollUpControlAccounts(input.accounts, (control, row) => {
+    control.opening += row.opening;
+    control.priorNet += row.priorNet;
+    control.currentNet += row.currentNet;
+  }).map((row) => ({
     row,
     group: groupOf(row),
     amount: net(row) + (assetAdjustments.get(row.accountCode) ?? 0),
@@ -370,41 +342,6 @@ function item(
     amount,
     percent: percentOf(amount, totalAssets),
   };
-}
-
-/** SDR / SCR are individual debtors and creditors, each its own GLMast account. */
-const SUBSIDIARY_TYPES = new Set(['SDR', 'SCR']);
-
-/** Folds individual debtors and creditors into their control account. */
-function rollUpControlAccounts(
-  accounts: AccountBalanceRow[],
-): AccountBalanceRow[] {
-  const byCode = new Map(accounts.map((row) => [row.accountCode, { ...row }]));
-  const controlOf = (row: AccountBalanceRow): AccountBalanceRow => {
-    const visited = new Set<string>();
-    let current = row;
-    while (
-      SUBSIDIARY_TYPES.has(current.specialAccType ?? '') &&
-      current.parentAccNo &&
-      !visited.has(current.accountCode)
-    ) {
-      visited.add(current.accountCode);
-      const parent = byCode.get(current.parentAccNo);
-      if (!parent) break;
-      current = parent;
-    }
-    return current;
-  };
-
-  for (const row of accounts) {
-    const control = controlOf(row);
-    if (control.accountCode === row.accountCode) continue;
-    control.opening += row.opening;
-    control.priorNet += row.priorNet;
-    control.currentNet += row.currentNet;
-    byCode.delete(row.accountCode);
-  }
-  return [...byCode.values()];
 }
 
 function composeAssets(
