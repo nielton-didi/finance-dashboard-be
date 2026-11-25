@@ -5,38 +5,21 @@ import { BalanceSheetService } from '../balance-sheet/balance-sheet.service';
 import { BalanceSheetStatementDto } from '../balance-sheet/dto/balance-sheet.dto';
 import { CashFlowService } from '../cash-flow/cash-flow.service';
 import { ProfitLossStatementDto } from '../profit-loss/dto/profit-loss-statement.dto';
-import { toPeriodNo } from '../profit-loss/profit-loss-periods';
-import {
-  buildProfitLossStatement,
-  PnlAccType,
-  round,
-} from '../profit-loss/profit-loss-statement.builder';
-import {
-  applyStockValues,
-  StockValueRow,
-} from '../profit-loss/profit-loss-stock';
+import { round } from '../profit-loss/profit-loss-statement.builder';
 import { ProfitLossService } from '../profit-loss/profit-loss.service';
-import { STOCK_VALUES_SQL } from '../profit-loss/profit-loss.queries';
-import { DateRange, performanceRanges } from './dashboard-ranges';
-import { PNL_RANGES_SQL, RECENT_DOCUMENTS_SQL } from './dashboard.queries';
+import { performance, performanceRanges } from './dashboard-ranges';
+import { RECENT_DOCUMENTS_SQL } from './dashboard.queries';
 import { DashboardQueryDto } from './dto/dashboard-query.dto';
 import {
   DashboardDocumentDto,
   DashboardDto,
   DashboardMetricsDto,
-  DashboardPerformanceDto,
 } from './dto/dashboard.dto';
 
 const TOP_EXPENSES = 6;
 const RECENT_DOCUMENTS = 10;
 /** Lines to look through for recent documents; one document can have many. */
 const RECENT_LINES = 500;
-
-type PnlRangesRow = {
-  accountCode: string;
-  accountName: string;
-  accType: PnlAccType;
-} & Record<`amount${number}`, number>;
 
 /**
  * Puts the three reports together. Balance sheet and cash flow figures come from their own
@@ -66,7 +49,7 @@ export class DashboardService {
     const { current, prior } = ranges;
 
     const [statements, cashFlow, trend, recentDocuments] = await Promise.all([
-      this.fetchStatements(organizationId, companyName, [
+      this.profitLossService.getStatements(organizationId, companyName, [
         current.mtd,
         current.ytd,
         current.ttm,
@@ -133,54 +116,6 @@ export class DashboardService {
     };
   }
 
-  private async fetchStatements(
-    organizationId: number,
-    companyName: string,
-    ranges: DateRange[],
-  ): Promise<ProfitLossStatementDto[]> {
-    const pool = await this.connectionManager.getConnection(organizationId);
-    const latest = ranges
-      .map((r) => r.toDate)
-      .sort()
-      .at(-1)!;
-    const params: Record<string, string> = {
-      earliest: ranges.map((r) => r.fromDate).sort()[0],
-      latest,
-    };
-    ranges.forEach(({ fromDate, toDate }, i) => {
-      params[`from${i}`] = fromDate;
-      params[`to${i}`] = toDate;
-    });
-
-    const [rows, stock] = await Promise.all([
-      runAutocountQuery<PnlRangesRow>(pool, PNL_RANGES_SQL, params),
-      runAutocountQuery<StockValueRow>(pool, STOCK_VALUES_SQL, {
-        projectNo: null,
-        deptNo: null,
-        toPeriod: toPeriodNo(latest),
-      }),
-    ]);
-
-    return ranges.map(({ fromDate, toDate }, i) =>
-      buildProfitLossStatement(
-        applyStockValues(
-          rows.map(({ accountCode, accountName, accType, ...amounts }) => ({
-            accountCode,
-            accountName,
-            accType,
-            amount: round(amounts[`amount${i}`]),
-          })),
-          stock,
-          toPeriodNo(fromDate),
-          toPeriodNo(toDate),
-        ),
-        companyName,
-        fromDate,
-        toDate,
-      ),
-    );
-  }
-
   private async fetchRecentDocuments(
     organizationId: number,
     asOfDate: string,
@@ -199,18 +134,6 @@ export class DashboardService {
       amount: round(amount),
     }));
   }
-}
-
-function performance(
-  statement: ProfitLossStatementDto,
-): DashboardPerformanceDto {
-  return {
-    fromDate: statement.fromDate,
-    toDate: statement.toDate,
-    netSales: statement.netSales.amount,
-    grossProfit: statement.grossProfit.amount,
-    netProfit: statement.netProfitAfterTax.amount,
-  };
 }
 
 function position(

@@ -19,6 +19,7 @@ import {
   ProfitLossComparisonDto,
   ProfitLossFiltersDto,
   ProfitLossReportDto,
+  ProfitLossStatementDto,
   ProfitLossTransactionDto,
   ProfitLossTransactionsDto,
   ProfitLossTrendDto,
@@ -33,6 +34,7 @@ import {
 import {
   buildProfitLossStatement,
   GlAccountRow,
+  PnlAccType,
   round,
 } from './profit-loss-statement.builder';
 import {
@@ -46,6 +48,7 @@ import {
   BUDGETS_SQL,
   DEPARTMENTS_SQL,
   GL_ACCOUNT_PERIODS_SQL,
+  pnlRangesSql,
   PROJECTS_SQL,
   STOCK_VALUES_SQL,
   TRANSACTION_TOTALS_SQL,
@@ -60,6 +63,17 @@ interface GlAccountPeriodRow extends GlAccountRow {
 interface LedgerData {
   rows: GlAccountPeriodRow[];
   stock: StockValueRow[];
+}
+
+type PnlRangesRow = {
+  accountCode: string;
+  accountName: string;
+  accType: PnlAccType;
+} & Record<`amount${number}`, number>;
+
+export interface DateRange {
+  fromDate: string;
+  toDate: string;
 }
 
 const MAX_BREAKDOWN_MONTHS = 36;
@@ -224,6 +238,59 @@ export class ProfitLossService {
       runAutocountQuery<{ key: string; name: string }>(pool, BUDGETS_SQL),
     ]);
     return { projects, departments, budgets };
+  }
+
+  /** Several date ranges at once, unfiltered, each as the P&L would show it. */
+  async getStatements(
+    organizationId: number,
+    companyName: string,
+    ranges: DateRange[],
+  ): Promise<ProfitLossStatementDto[]> {
+    const pool = await this.connectionManager.getConnection(organizationId);
+    const latest = ranges
+      .map((r) => r.toDate)
+      .sort()
+      .at(-1)!;
+    const params: Record<string, string> = {
+      earliest: ranges.map((r) => r.fromDate).sort()[0],
+      latest,
+    };
+    ranges.forEach(({ fromDate, toDate }, i) => {
+      params[`from${i}`] = fromDate;
+      params[`to${i}`] = toDate;
+    });
+
+    const [rows, stock] = await Promise.all([
+      runAutocountQuery<PnlRangesRow>(
+        pool,
+        pnlRangesSql(ranges.length),
+        params,
+      ),
+      runAutocountQuery<StockValueRow>(pool, STOCK_VALUES_SQL, {
+        projectNo: null,
+        deptNo: null,
+        toPeriod: toPeriodNo(latest),
+      }),
+    ]);
+
+    return ranges.map(({ fromDate, toDate }, i) =>
+      buildProfitLossStatement(
+        applyStockValues(
+          rows.map(({ accountCode, accountName, accType, ...amounts }) => ({
+            accountCode,
+            accountName,
+            accType,
+            amount: round(amounts[`amount${i}`]),
+          })),
+          stock,
+          toPeriodNo(fromDate),
+          toPeriodNo(toDate),
+        ),
+        companyName,
+        fromDate,
+        toDate,
+      ),
+    );
   }
 
   private async getComparison(

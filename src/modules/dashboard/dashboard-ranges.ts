@@ -1,13 +1,11 @@
+import { ProfitLossStatementDto } from '../profit-loss/dto/profit-loss-statement.dto';
+import { DashboardPerformanceDto } from './dto/dashboard.dto';
+import type { DateRange } from '../profit-loss/profit-loss.service';
 import {
   nextDay,
   shiftDateToPriorYear,
   shiftRangeToPriorYear,
 } from '../profit-loss/profit-loss-periods';
-
-export interface DateRange {
-  fromDate: string;
-  toDate: string;
-}
 
 export interface PerformanceRanges {
   mtd: DateRange;
@@ -36,4 +34,16 @@ export function performanceRanges(
 
 function twelveMonthsTo(toDate: string): DateRange {
   return { fromDate: nextDay(shiftDateToPriorYear(toDate)), toDate };
+}
+
+export function performance(
+  statement: ProfitLossStatementDto,
+): DashboardPerformanceDto {
+  return {
+    fromDate: statement.fromDate,
+    toDate: statement.toDate,
+    netSales: statement.netSales.amount,
+    grossProfit: statement.grossProfit.amount,
+    netProfit: statement.netProfitAfterTax.amount,
+  };
 }

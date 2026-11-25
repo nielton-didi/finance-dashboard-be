@@ -110,6 +110,18 @@ export class BalanceSheetService {
     };
   }
 
+  async getFiscalYearStart(
+    organizationId: number,
+    asOfDate: string,
+  ): Promise<string> {
+    const pool = await this.connectionManager.getConnection(organizationId);
+    const years = await runAutocountQuery<FiscalYearRow>(
+      pool,
+      FISCAL_YEARS_SQL,
+    );
+    return fiscalYearStart(years, asOfDate);
+  }
+
   private async load(
     organizationId: number,
     companyName: string,
@@ -119,11 +131,7 @@ export class BalanceSheetService {
     const { asOfDate } = query;
     const params = asOfParams(query);
 
-    const years = await runAutocountQuery<FiscalYearRow>(
-      pool,
-      FISCAL_YEARS_SQL,
-    );
-    const yearStart = fiscalYearStart(years, asOfDate);
+    const yearStart = await this.getFiscalYearStart(organizationId, asOfDate);
 
     const [accounts, stock, [opening]] = await Promise.all([
       runAutocountQuery<AccountBalanceRow>(pool, ACCOUNT_BALANCES_SQL, {

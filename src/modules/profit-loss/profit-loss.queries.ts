@@ -50,6 +50,44 @@ export const GL_ACCOUNT_PERIODS_SQL = `
   ORDER BY m.AccNo, p.PeriodNo
 `;
 
+/**
+ * Every P&L account's movement in several date ranges from one pass over the ledger, with
+ * parameters @from0 / @to0 and so on. Signs follow GL_ACCOUNT_PERIODS_SQL above.
+ */
+export function pnlRangesSql(rangeCount: number): string {
+  const ranges = Array.from({ length: rangeCount }, (_, i) => i);
+  const amounts = ranges.map(
+    (i) =>
+      `ISNULL(CASE WHEN g.NormalBalance = 'C' THEN -l.Net${i} ELSE l.Net${i} END, 0) AS amount${i}`,
+  );
+  const nets = ranges.map(
+    (i) => `SUM(CASE
+        WHEN d.TransDate >= CAST(@from${i} AS date)
+          AND d.TransDate < DATEADD(day, 1, CAST(@to${i} AS date))
+        THEN ISNULL(d.HomeDR, 0) - ISNULL(d.HomeCR, 0) ELSE 0 END) AS Net${i}`,
+  );
+  return `
+  SELECT
+    m.AccNo AS accountCode,
+    ISNULL(m.Description, '') AS accountName,
+    m.AccType AS accType,
+    ${amounts.join(',\n    ')}
+  FROM GLMast m
+  JOIN AccGroup g ON g.AccType = m.AccType
+  LEFT JOIN (
+    SELECT
+      d.AccNo,
+      ${nets.join(',\n      ')}
+    FROM GLDTL d
+    WHERE d.TransDate >= CAST(@earliest AS date)
+      AND d.TransDate < DATEADD(day, 1, CAST(@latest AS date))
+    GROUP BY d.AccNo
+  ) l ON l.AccNo = m.AccNo
+  WHERE m.AccType IN ${PNL_ACC_TYPES_SQL}
+  ORDER BY m.AccNo
+`;
+}
+
 /** Budget amounts are entered per account in its natural balance, so need no netting. */
 export const BUDGET_ACCOUNT_ROWS_SQL = `
   SELECT
