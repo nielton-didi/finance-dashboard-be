@@ -2,6 +2,8 @@
  * Every query is read-only and fully parameterized. Shared conventions:
  * - Dates are compared as [fromDate, toDate + 1 day) via CAST(... AS date), which is
  *   independent of the customer server's DATEFORMAT and of any time part on TransDate.
+ * - Amounts are HomeDR / HomeCR (home currency): DR / CR are in the account's own
+ *   currency, so they cannot be added up across accounts.
  * - A NULL @projectNo / @deptNo means "no filter".
  */
 const GLDTL_FILTER = `
@@ -38,8 +40,8 @@ export const GL_ACCOUNT_PERIODS_SQL = `
     SELECT
       d.AccNo,
       YEAR(d.TransDate) * 12 + MONTH(d.TransDate) AS PeriodNo,
-      SUM(ISNULL(d.DR, 0)) AS DR,
-      SUM(ISNULL(d.CR, 0)) AS CR
+      SUM(ISNULL(d.HomeDR, 0)) AS DR,
+      SUM(ISNULL(d.HomeCR, 0)) AS CR
     FROM GLDTL d
     WHERE ${GLDTL_FILTER}
     GROUP BY d.AccNo, YEAR(d.TransDate) * 12 + MONTH(d.TransDate)
@@ -78,6 +80,7 @@ export const STOCK_VALUES_SQL = `
     s.StockSetKey AS stockSetKey,
     s.OpenStock AS openStockAccNo,
     s.CloseStock AS closeStockAccNo,
+    s.BalanceStock AS balanceStockAccNo,
     p.PeriodNo AS periodNo,
     SUM(ISNULL(p.Balance, 0)) AS balance
   FROM StockPBalance p
@@ -85,7 +88,7 @@ export const STOCK_VALUES_SQL = `
   WHERE p.PeriodNo <= @toPeriod
     AND (@projectNo IS NULL OR p.ProjNo = @projectNo)
     AND (@deptNo IS NULL OR p.DeptNo = @deptNo)
-  GROUP BY s.StockSetKey, s.OpenStock, s.CloseStock, p.PeriodNo
+  GROUP BY s.StockSetKey, s.OpenStock, s.CloseStock, s.BalanceStock, p.PeriodNo
 `;
 
 const TRANSACTION_FILTER = `
@@ -106,8 +109,8 @@ export const TRANSACTIONS_SQL = `
     d.JournalType AS journalType,
     d.ProjNo AS projectNo,
     d.DeptNo AS deptNo,
-    ISNULL(d.DR, 0) AS debit,
-    ISNULL(d.CR, 0) AS credit
+    ISNULL(d.HomeDR, 0) AS debit,
+    ISNULL(d.HomeCR, 0) AS credit
   FROM GLDTL d
   JOIN GLMast m ON m.AccNo = d.AccNo
   WHERE ${TRANSACTION_FILTER}
@@ -117,8 +120,8 @@ export const TRANSACTIONS_SQL = `
 export const TRANSACTION_TOTALS_SQL = `
   SELECT
     COUNT(*) AS totalCount,
-    ISNULL(SUM(d.DR), 0) AS totalDebit,
-    ISNULL(SUM(d.CR), 0) AS totalCredit
+    ISNULL(SUM(d.HomeDR), 0) AS totalDebit,
+    ISNULL(SUM(d.HomeCR), 0) AS totalCredit
   FROM GLDTL d
   JOIN GLMast m ON m.AccNo = d.AccNo
   WHERE ${TRANSACTION_FILTER}

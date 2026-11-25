@@ -98,6 +98,9 @@ export class ProfitLossTransactionsDto {
   rows: ProfitLossTransactionDto[];
   /** Totals cover every matching line, even when `rows` is truncated. */
   totalCount: number;
+  /** Opening balance included in the totals; always zero for P&L drilldowns. */
+  openingDebit: number;
+  openingCredit: number;
   totalDebit: number;
   totalCredit: number;
   truncated: boolean;

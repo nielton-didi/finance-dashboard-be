@@ -59,6 +59,11 @@ export function shiftRangeToPriorYear(
   };
 }
 
+/** The same date one year earlier; a month-end stays a month-end. */
+export function shiftDateToPriorYear(isoDate: string): string {
+  return shiftYear(isoDate, true);
+}
+
 export interface PeriodBucket {
   key: string;
   label: string;
@@ -104,6 +109,12 @@ export function enumerateBuckets(
 function parse(isoDate: string): { year: number; month: number; day: number } {
   const [year, month, day] = isoDate.split('-').map(Number);
   return { year, month, day };
+}
+
+/** True on the last day of a month, when month-end stock valuations are exact. */
+export function isMonthEnd(isoDate: string): boolean {
+  const { year, month, day } = parse(isoDate);
+  return day === lastDayOfMonth(year, month);
 }
 
 function lastDayOfMonth(year: number, month: number): number {

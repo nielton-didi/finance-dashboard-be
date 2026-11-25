@@ -21,6 +21,7 @@ function valuation(periodNo: number, balance: number): StockValueRow {
     stockSetKey: 1,
     openStockAccNo: '600-0000',
     closeStockAccNo: '620-0000',
+    balanceStockAccNo: '330-0000',
     periodNo,
     balance,
   };

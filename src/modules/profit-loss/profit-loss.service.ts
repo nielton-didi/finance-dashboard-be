@@ -206,6 +206,8 @@ export class ProfitLossService {
     return {
       rows,
       totalCount: totals.totalCount,
+      openingDebit: 0,
+      openingCredit: 0,
       totalDebit: round(totals.totalDebit),
       totalCredit: round(totals.totalCredit),
       truncated: totals.totalCount > rows.length,

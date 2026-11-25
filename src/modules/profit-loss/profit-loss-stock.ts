@@ -5,6 +5,8 @@ export interface StockValueRow {
   stockSetKey: number;
   openStockAccNo: string;
   closeStockAccNo: string;
+  /** The balance sheet account that shows the valuation. */
+  balanceStockAccNo: string;
   periodNo: number;
   balance: number;
 }
@@ -41,6 +43,16 @@ export function applyStockValues(
       hasStockValue: true,
     };
   });
+}
+
+/** Each stock set's valuation in force at a period, i.e. what the balance sheet shows. */
+export function stockValuesAt(
+  stockRows: StockValueRow[],
+  periodNo: number,
+): StockValueRow[] {
+  return [...groupByStockSet(stockRows).values()].flatMap(
+    (setRows) => latestAtOrBefore(setRows, periodNo) ?? [],
+  );
 }
 
 /** The period closing stock was actually valued at, when that is before `toPeriod`. */
